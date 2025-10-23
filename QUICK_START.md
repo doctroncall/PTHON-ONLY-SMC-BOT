@@ -1,41 +1,43 @@
-# 🚀 Quick Start Guide - Anaconda Edition
+# 🚀 Quick Start Guide - Pure Python Edition
 
 Get your MT5 Sentiment Analysis Bot running in 2 easy steps!
 
 ## ⚡ Fast Track Installation
 
-Your bot now uses **Anaconda** for maximum stability and automatic dependency management!
+Your bot uses **Pure Python** with virtual environments for maximum simplicity!
 
 ### Windows Users:
 
-1. **Install Anaconda/Miniconda**
-   - Anaconda: https://www.anaconda.com/download
-   - Miniconda: https://docs.conda.io/en/latest/miniconda.html
+1. **Install Python 3.11+**
+   - Download: https://www.python.org/downloads/
+   - ⚠️ **Check "Add Python to PATH" during installation!**
 
 2. **Double-click `start_bot.bat`**
-3. **Wait 5-15 minutes (first time only)**
+3. **Wait 5-10 minutes (first time only)**
 4. **Dashboard opens automatically!**
 
 ### Linux/Mac Users:
 
-1. **Install Anaconda/Miniconda**
-   - Anaconda: https://www.anaconda.com/download
-   - Miniconda: https://docs.conda.io/en/latest/miniconda.html
+1. **Install Python 3.11+**
+   - Ubuntu/Debian: `sudo apt install python3.11 python3.11-venv python3-pip`
+   - macOS: `brew install python@3.11`
+   - Or download from: https://www.python.org/downloads/
 
 2. **Run in terminal:**
    ```bash
+   chmod +x start_bot.sh
    ./start_bot.sh
    ```
-3. **Wait 5-15 minutes (first time only)**
+3. **Wait 5-10 minutes (first time only)**
 4. **Dashboard opens automatically!**
 
 ---
 
-## 📋 What the Anaconda Launcher Does:
+## 📋 What the Launcher Does:
 
-✅ Checks if Anaconda/Miniconda is installed  
-✅ Creates isolated conda environment (`mt5-sentiment-bot`)  
-✅ **Installs TA-Lib automatically** (no manual steps!)  
+✅ Checks if Python 3.11+ is installed  
+✅ Creates isolated virtual environment (venv)  
+✅ Installs all dependencies from requirements.txt  
 ✅ Installs all ML libraries (TensorFlow, XGBoost, etc.)  
 ✅ Installs Streamlit and all dependencies  
 ✅ Creates required directories (data, logs, models, reports)  
@@ -45,238 +47,214 @@ Your bot now uses **Anaconda** for maximum stability and automatic dependency ma
 
 ---
 
-## 🌟 Why Anaconda is Better
+## 🌟 Why Pure Python is Better
 
-### The Old Way (Standard Python):
-❌ Manual TA-Lib installation (complicated!)  
-❌ Download wheel files  
-❌ Match Python version  
-❌ Compilation errors  
-❌ Dependency conflicts  
-
-### The New Way (Anaconda):
-✅ **TA-Lib installs automatically!**  
-✅ **No manual downloads**  
-✅ **No compilation needed**  
-✅ **No dependency conflicts**  
-✅ **Works first time**  
-✅ **Cross-platform consistency**  
+### Simple & Direct:
+✅ **No Conda required**  
+✅ **Uses standard Python venv**  
+✅ **Installs via pip from requirements.txt**  
+✅ **Faster setup**  
+✅ **Less disk space**  
+✅ **Standard Python workflow**  
 
 ---
 
 ## ⚙️ What You Need:
 
 ### Prerequisites:
-- [ ] **Anaconda or Miniconda installed**
+- [ ] **Python 3.11+ installed**
 - [ ] Internet connection (first-time setup only)
-- [ ] ~2GB free disk space
-- [ ] 5-15 minutes (first run only)
+- [ ] ~1.5GB free disk space
+- [ ] 5-10 minutes (first run only)
 - [ ] MT5 credentials (for later)
 
 ### First-Time Setup:
 
-**1. Install Anaconda/Miniconda**
+**1. Install Python 3.11+**
 
-Choose your preference:
+**Windows:**
+- Download: https://www.python.org/downloads/
+- Run installer
+- ⚠️ **IMPORTANT:** Check "Add Python to PATH"
+- Click "Install Now"
 
-**Anaconda (Full Package - Recommended for Beginners)**
-- Download: https://www.anaconda.com/download
-- Size: ~3GB
-- Includes: Anaconda Navigator GUI + 250+ packages
-- Best for: Users who want everything ready
+**macOS:**
+```bash
+brew install python@3.11
+```
 
-**Miniconda (Minimal - Recommended for Advanced Users)**
-- Download: https://docs.conda.io/en/latest/miniconda.html
-- Size: ~400MB
-- Includes: Just conda + Python
-- Best for: Users who want minimal install
-
-**Installation Tips:**
-- **Windows:** Check "Add Anaconda to PATH" (optional but helpful)
-- **Mac:** Use installer or `brew install --cask anaconda`
-- **Linux:** Download shell script and run: `bash Miniconda3-latest-Linux-x86_64.sh`
+**Ubuntu/Debian:**
+```bash
+sudo apt update
+sudo apt install python3.11 python3.11-venv python3-pip
+```
 
 **2. Run the Bot**
 
-**Windows:** Open Anaconda Prompt (or regular cmd if conda is in PATH)
+**Windows:**
 ```batch
-cd path\to\mt5-sentiment-bot
 start_bot.bat
 ```
 
-**Linux/Mac:** Open terminal
+**Linux/Mac:**
 ```bash
-cd /path/to/mt5-sentiment-bot
+chmod +x start_bot.sh
 ./start_bot.sh
 ```
 
+The launcher will:
+- Create `venv` folder (virtual environment)
+- Install all packages automatically
+- Launch the dashboard
+
 **3. Wait for Setup**
 
-First run only (5-15 minutes):
-- Creating conda environment...
-- Installing TA-Lib from conda-forge... ✓
-- Installing machine learning libraries...
-- Installing visualization tools...
-- Setting up database...
-- Starting dashboard...
+First run takes 5-10 minutes:
+- ⏳ Creating virtual environment... (1 min)
+- ⏳ Installing packages... (5-8 min)
+- ✅ Launching bot... (instant!)
 
-**4. Configure MT5**
-
-Once dashboard opens:
-1. Go to **Settings** tab
-2. Click **MT5 Connection**
-3. Enter your credentials
-4. Click **Connect**
+**Subsequent runs:** Instant! (venv already set up)
 
 ---
 
-## 🎯 Using the Bot:
+## 🔧 Configuration (Optional)
 
-1. **Dashboard opens automatically** in your browser
-2. **Select symbol** (e.g., EURUSD) from sidebar
-3. **Choose timeframe** (e.g., H1)
-4. **Click "Analyze"** button
-5. **View results** in real-time!
+### MT5 Connection Settings:
 
----
+1. Go to **Settings** tab in the dashboard
+2. Enter your MT5 credentials:
+   - **Account Number**: Your MT5 login
+   - **Password**: Your MT5 password  
+   - **Server**: Your broker's server (e.g., "ICMarkets-Demo")
+3. Click **"Connect to MT5"**
 
-## 🔧 Troubleshooting:
+### Analysis Settings:
 
-### "conda: command not found"
-
-**Windows:**
-- Use **Anaconda Prompt** instead of regular cmd
-- Or add Anaconda to PATH during installation
-
-**Linux/Mac:**
-```bash
-# Initialize conda for your shell
-conda init bash  # or: conda init zsh for Mac
-# Restart terminal
-```
-
-### "Failed to create conda environment"
-
-```bash
-# Update conda
-conda update conda
-
-# Clean cache
-conda clean --all
-
-# Try again
-./start_bot.sh  # or start_bot.bat
-```
-
-### "TA-Lib import error"
-
-```bash
-# Activate environment
-conda activate mt5-sentiment-bot
-
-# Install TA-Lib manually
-conda install -c conda-forge ta-lib -y
-
-# Verify
-python -c "import talib; print('TA-Lib works!')"
-```
-
-### "Environment activation failed"
-
-```bash
-# Initialize conda
-conda init bash  # Linux
-conda init zsh   # Mac  
-conda init cmd.exe  # Windows
-
-# Restart terminal and try again
-```
-
-### "Streamlit won't start"
-
-```bash
-# Check environment is activated
-conda activate mt5-sentiment-bot
-
-# Verify streamlit installed
-conda list streamlit
-
-# Check port 8501 is available
-# Windows: netstat -an | findstr 8501
-# Linux/Mac: lsof -i :8501
-
-# Try manually
-streamlit run app.py
-```
-
-### "MT5 connection failed"
-
-This is normal! You need to configure MT5 first:
-1. Dashboard → Settings tab
-2. MT5 Connection section
-3. Enter your MT5 credentials
-4. Click Connect
+1. **Symbol**: Choose currency pair (default: EURUSD)
+2. **Timeframes**: Select timeframes to analyze (M15, H1, H4, D1)
+3. **Update Frequency**: Auto-refresh interval (1-60 minutes)
+4. **ML Settings**: Enable/disable machine learning features
 
 ---
 
-## 💡 Useful Commands:
+## 📊 Dashboard Overview
 
-```bash
-# Check conda is installed
-conda --version
+Once the bot starts, you'll see:
 
-# List all conda environments
-conda env list
+### **Main Tab** - Sentiment Analysis
+- Real-time market sentiment (Bullish/Neutral/Bearish)
+- Confidence score (0-100%)
+- Risk level indicator
+- Interactive price chart with signals
+- Contributing factors breakdown
 
-# Activate environment manually
-conda activate mt5-sentiment-bot
+### **Multi-Timeframe Tab** - Confluence Analysis
+- Analysis across multiple timeframes
+- Timeframe alignment score
+- Individual timeframe sentiments
+- Weighted consensus
 
-# Deactivate when done
-conda deactivate
+### **Health Tab** - System Monitoring
+- MT5 connection status
+- Data pipeline health
+- ML model status
+- System resource usage
+- Recent activity feed
 
-# Update all packages in environment
-conda env update -f environment.yml
-
-# Remove environment (to start fresh)
-conda env remove -n mt5-sentiment-bot
-
-# Clean conda cache (free up space)
-conda clean --all
-```
-
----
-
-## 📚 Need More Help?
-
-- **Quick reference:** `START_HERE_ANACONDA.md`
-- **Full documentation:** `ANACONDA_MIGRATION_COMPLETE.md`
-- **Detailed setup:** `SETUP_GUIDE.md`
-- **Troubleshooting:** Check the `logs/` folder
+### **Settings Tab** - Configuration
+- MT5 connection settings
+- Analysis parameters
+- ML training controls
+- System diagnostics
 
 ---
 
-## 🎊 You're Ready!
+## 🎯 Next Steps
 
-Your professional MT5 trading bot is ready with Anaconda! 
-
-**Benefits you now have:**
-✅ **Stable environment** - No more dependency issues  
-✅ **Automatic TA-Lib** - No manual installation  
-✅ **Optimized ML** - Faster computations  
-✅ **Professional setup** - Industry standard  
-✅ **Easy updates** - Just `conda env update`  
+1. **Connect to MT5** (Settings tab)
+2. **Select your symbol** (e.g., EURUSD, GBPUSD)
+3. **Click "Analyze"** (Main tab)
+4. **Review sentiment** and confidence
+5. **Check multi-timeframe** alignment
+6. **Monitor health** status
 
 ---
 
-**Pro Tips:**
-- Use **Anaconda Prompt** on Windows for best experience
-- Enable **Multi-Timeframe Analysis** for better signals
-- Check **Health** tab to monitor system status
-- Generate **PDF reports** from the dashboard
-- Configure **alerts** in Settings tab
+## 🆘 Troubleshooting
+
+### "Python not found"
+- Install Python 3.11+ from https://www.python.org/downloads/
+- Make sure "Add to PATH" was checked during installation
+- Restart your terminal/command prompt
+
+### "Failed to create virtual environment"
+- Windows: Make sure Python is in PATH
+- Linux: Install venv: `sudo apt install python3.11-venv`
+- Delete `venv` folder and try again
+
+### "Failed to install dependencies"
+- Check internet connection
+- Try: `python -m pip install --upgrade pip`
+- For TA-Lib on Windows: Download wheel from https://github.com/cgohlke/talib-build/releases
+
+### "Streamlit command not found"
+- Activate venv first:
+  - Windows: `venv\Scripts\activate`
+  - Linux/Mac: `source venv/bin/activate`
+- Then: `pip install streamlit`
+
+### MT5 Connection Issues
+- Make sure MetaTrader 5 is installed
+- Enable "Algo Trading" in MT5 (Tools → Options → Expert Advisors)
+- Check firewall isn't blocking Python
+- Verify credentials are correct
+
+### More Help
+See the full [TROUBLESHOOTING.md](TROUBLESHOOTING.md) guide
 
 ---
 
-**Built with Anaconda - The Data Science Standard** 🐍📊
+## ✅ Success Checklist
 
-*Happy Trading!* 📈
+- [x] Python 3.11+ installed
+- [x] Ran start_bot script
+- [x] Virtual environment created
+- [x] Dependencies installed
+- [x] Dashboard opened in browser
+- [x] Connected to MT5
+- [x] First analysis completed
+- [x] Health checks passing
+
+---
+
+## 📚 Additional Resources
+
+- **Full Setup Guide**: [SETUP_GUIDE.md](SETUP_GUIDE.md)
+- **Troubleshooting**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+- **Architecture**: [ARCHITECTURE_REVIEW.md](ARCHITECTURE_REVIEW.md)
+- **Contributing**: [CONTRIBUTING.md](CONTRIBUTING.md)
+
+---
+
+## 💡 Pro Tips
+
+1. **Keep Python updated**: `python -m pip install --upgrade pip`
+2. **Update bot**: `pip install -r requirements.txt --upgrade`
+3. **Check health regularly**: Health tab shows system status
+4. **Enable auto-refresh**: Dashboard auto-updates analysis
+5. **Review logs**: `logs/` folder has detailed logs
+6. **Backup database**: `data/mt5_sentiment.db` stores all data
+
+---
+
+## 🎉 You're Ready!
+
+Your MT5 Sentiment Analysis Bot is now running!
+
+**Dashboard URL**: http://localhost:8501
+
+**To stop**: Press `Ctrl+C` in the terminal  
+**To restart**: Run `start_bot.bat` (Windows) or `./start_bot.sh` (Linux/Mac)
+
+Happy trading! 📈

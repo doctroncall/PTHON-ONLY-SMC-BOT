@@ -123,7 +123,7 @@ def main():
     if failed_count == 0:
         print(f"{GREEN}✓ All {total} packages are installed!{RESET}")
         print(f"\n{GREEN}You're ready to run the bot!{RESET}")
-        print(f"\nTo start: {YELLOW}conda smc.bat{RESET}")
+        print(f"\nTo start: {YELLOW}start_bot.bat{RESET} (Windows) or {YELLOW}./start_bot.sh{RESET} (Linux/Mac)")
     else:
         print(f"{YELLOW}⚠ {passed}/{total} packages installed{RESET}")
         print(f"{RED}✗ {failed_count} package(s) missing{RESET}\n")
@@ -133,9 +133,9 @@ def main():
             print(f"  • {display_name} ({import_name})")
         
         print(f"\n{YELLOW}How to fix:{RESET}")
-        print(f"  1. Run: {BLUE}conda env update -f environment.yml{RESET}")
+        print(f"  1. Run: {BLUE}pip install -r requirements.txt{RESET}")
         print(f"  2. Or manually install missing packages:")
-        print(f"     {BLUE}conda install -c conda-forge <package_name>{RESET}")
+        print(f"     {BLUE}pip install <package_name>{RESET}")
         
         # Special note for critical packages
         critical_missing = [name for name, imp, _ in failed if imp in ['loguru', 'streamlit', 'MetaTrader5']]
@@ -143,7 +143,7 @@ def main():
             print(f"\n{RED}⚠ CRITICAL: The following essential packages are missing:{RESET}")
             for pkg in critical_missing:
                 print(f"     • {pkg}")
-            print(f"\n  Quick fix for loguru: {BLUE}fix_loguru.bat{RESET}")
+            print(f"\n  Quick fix: {BLUE}pip install {' '.join(critical_missing)}{RESET}")
     
     print(f"{BLUE}{'='*60}{RESET}\n")
     
@@ -152,12 +152,13 @@ def main():
     print(f"  Version: {sys.version.split()[0]}")
     print(f"  Path: {sys.executable}")
     
-    # Check if in conda environment
-    if 'conda' in sys.prefix.lower() or 'anaconda' in sys.prefix.lower():
-        print(f"  {GREEN}✓ Running in conda environment{RESET}")
+    # Check if in virtual environment
+    if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        print(f"  {GREEN}✓ Running in virtual environment{RESET}")
     else:
-        print(f"  {YELLOW}⚠ Not running in conda environment{RESET}")
-        print(f"     Activate with: {BLUE}conda activate smc_bot{RESET}")
+        print(f"  {YELLOW}⚠ Not running in virtual environment{RESET}")
+        print(f"     Activate with: {BLUE}venv\\Scripts\\activate{RESET} (Windows)")
+        print(f"                 or: {BLUE}source venv/bin/activate{RESET} (Linux/Mac)")
     
     print()
     

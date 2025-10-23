@@ -1,73 +1,51 @@
 @echo off
-REM ========================================
-REM Quick Fix for Missing loguru Module
-REM ========================================
+REM =============================================
+REM Loguru Fix Script - Pure Python
+REM =============================================
 
 echo.
-echo ========================================
-echo   FIXING MISSING LOGURU MODULE
-echo ========================================
+echo =============================================
+echo   Loguru Quick Fix (Pure Python)
+echo =============================================
 echo.
 
-REM Try to find conda
-where conda >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Conda not found in PATH
+REM Check if virtual environment exists
+if not exist "venv\" (
+    echo [ERROR] Virtual environment not found!
     echo.
-    echo Please run this script from Anaconda Prompt
-    echo Or manually run: conda install -c conda-forge loguru
+    echo Please run start_bot.bat first to create the environment.
     echo.
     pause
     exit /b 1
 )
 
-echo [OK] Conda found
-echo.
+echo [1/3] Activating virtual environment...
+call venv\Scripts\activate.bat
 
-REM Check which environment is active
-echo [INFO] Checking active environment...
-echo Current environment: %CONDA_DEFAULT_ENV%
-echo.
+echo [2/3] Installing/Upgrading loguru...
+pip uninstall -y loguru
+pip install --upgrade loguru
 
-REM Install loguru
-echo [1/2] Installing loguru...
-echo.
-conda install -c conda-forge loguru -y
+echo [3/3] Verifying installation...
+python -c "import loguru; print('[OK] Loguru version:', loguru.__version__)"
+
 if errorlevel 1 (
-    echo [ERROR] Failed to install loguru with conda
-    echo [INFO] Trying with pip...
-    pip install loguru
-    if errorlevel 1 (
-        echo [ERROR] Failed to install loguru
-        echo.
-        echo Please try manually:
-        echo   conda activate smc_bot
-        echo   conda install -c conda-forge loguru
-        echo.
-        pause
-        exit /b 1
-    )
-)
-
-echo [OK] loguru installed successfully
-echo.
-
-REM Verify installation
-echo [2/2] Verifying installation...
-python -c "import loguru; print('[OK] loguru version:', loguru.__version__)" 2>nul
-if errorlevel 1 (
-    echo [WARNING] Could not verify loguru installation
-    echo Please check if it's working:
-    echo   python -c "import loguru; print(loguru.__version__)"
-) else (
-    echo [OK] loguru is working correctly
+    echo.
+    echo [ERROR] Loguru installation failed!
+    echo.
+    echo Try:
+    echo   1. pip install --upgrade pip
+    echo   2. pip install loguru --force-reinstall
+    echo.
+    pause
+    exit /b 1
 )
 
 echo.
-echo ========================================
-echo   FIX COMPLETE!
-echo ========================================
+echo =============================================
+echo   Loguru Fix Complete!
+echo =============================================
 echo.
-echo You can now run "conda smc.bat" to start the bot
+echo You can now run: start_bot.bat
 echo.
 pause

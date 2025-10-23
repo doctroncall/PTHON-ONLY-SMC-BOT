@@ -1,137 +1,115 @@
 #!/bin/bash
 # ========================================
 # MT5 Sentiment Analysis Bot Launcher
-# Anaconda/Conda Version
+# Pure Python Version - No Conda Required
 # For Linux/Mac users
 # ========================================
-# This script uses Anaconda for better stability with ML dependencies
 
 echo ""
 echo "========================================"
-echo "MT5 Sentiment Analysis Bot (Anaconda)"
+echo "MT5 Sentiment Analysis Bot (Pure Python)"
 echo "========================================"
 echo ""
 
-# Check if conda is installed
-if ! command -v conda &> /dev/null; then
-    echo "[ERROR] Anaconda/Miniconda is not installed or not in PATH"
+# Check if Python 3 is installed
+if ! command -v python3 &> /dev/null; then
+    echo "[ERROR] Python 3 is not installed"
     echo ""
-    echo "Please install Anaconda or Miniconda:"
-    echo "  - Anaconda (full): https://www.anaconda.com/download"
-    echo "  - Miniconda (minimal): https://docs.conda.io/en/latest/miniconda.html"
+    echo "Please install Python 3.11 or higher:"
+    echo "  - Ubuntu/Debian: sudo apt install python3.11 python3.11-venv python3-pip"
+    echo "  - macOS: brew install python@3.11"
+    echo "  - Or download from: https://www.python.org/downloads/"
     echo ""
-    echo "On macOS:"
-    echo "  brew install --cask anaconda"
-    echo "  OR: brew install --cask miniconda"
+    exit 1
+fi
+
+# Get Python version
+PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+echo "[OK] Python found - Version $PYTHON_VERSION"
+
+# Check if version is 3.11+
+PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
+PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
+
+if [ "$PYTHON_MAJOR" -lt 3 ] || ([ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -lt 11 ]); then
+    echo "[WARNING] Python 3.11+ is recommended. Current version: $PYTHON_VERSION"
+    echo "The bot may not work correctly with older versions."
     echo ""
-    echo "On Linux:"
-    echo "  wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh"
-    echo "  bash Miniconda3-latest-Linux-x86_64.sh"
+fi
+
+echo ""
+
+# Check if virtual environment exists
+if [ ! -d "venv" ]; then
+    echo "[SETUP] Creating Python virtual environment..."
+    echo "This will take 1-2 minutes..."
     echo ""
-    echo "After installation:"
-    echo "  1. Restart your terminal"
+    
+    python3 -m venv venv
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "[ERROR] Failed to create virtual environment"
+        echo ""
+        echo "Try installing venv:"
+        echo "  - Ubuntu/Debian: sudo apt install python3.11-venv"
+        echo "  - Or: sudo apt install python3-venv"
+        echo ""
+        exit 1
+    fi
+    
+    echo "[OK] Virtual environment created"
+    echo ""
+else
+    echo "[OK] Virtual environment exists"
+    echo ""
+fi
+
+# Activate virtual environment
+echo "[SETUP] Activating virtual environment..."
+
+source venv/bin/activate
+if [ $? -ne 0 ]; then
+    echo "[ERROR] Failed to activate virtual environment"
+    echo ""
+    echo "Try:"
+    echo "  1. Delete venv folder: rm -rf venv"
     echo "  2. Run this script again"
     echo ""
     exit 1
 fi
 
-# Get conda version
-CONDA_VERSION=$(conda --version 2>&1 | awk '{print $2}')
-echo "[OK] Conda found - Version $CONDA_VERSION"
+echo "[OK] Virtual environment activated"
 echo ""
 
-# Initialize conda for bash if needed
-if [ ! -f "$HOME/.bashrc" ] || ! grep -q "conda initialize" "$HOME/.bashrc" 2>/dev/null; then
-    echo "[SETUP] Initializing conda for bash..."
-    conda init bash
-    echo "[INFO] Please restart your terminal and run this script again"
-    exit 0
-fi
-
-# Source conda
-CONDA_BASE=$(conda info --base)
-source "$CONDA_BASE/etc/profile.d/conda.sh"
-
-# Check if conda environment exists
-if ! conda env list | grep -q "^mt5-sentiment-bot "; then
-    echo "[SETUP] Creating conda environment from environment.yml..."
-    echo "This will take 5-15 minutes - please be patient"
-    echo ""
-    
-    # Check if environment.yml exists
-    if [ ! -f "environment.yml" ]; then
-        echo "[ERROR] environment.yml not found"
-        echo "Please ensure environment.yml is in the project directory"
-        exit 1
-    fi
-    
-    echo "[SETUP] Installing packages with conda..."
-    echo "Progress: This includes TA-Lib and all ML libraries"
-    echo ""
-    
-    conda env create -f environment.yml
-    if [ $? -ne 0 ]; then
-        echo ""
-        echo "[ERROR] Failed to create conda environment"
-        echo ""
-        echo "Troubleshooting:"
-        echo "1. Check your internet connection"
-        echo "2. Try: conda clean --all"
-        echo "3. Try: conda update conda"
-        echo "4. Check the error messages above"
-        echo ""
-        exit 1
-    fi
-    
-    echo ""
-    echo "[OK] Conda environment created successfully"
-    echo ""
-else
-    echo "[OK] Conda environment 'mt5-sentiment-bot' already exists"
-    echo "[INFO] To update environment: conda env update -f environment.yml"
-fi
-
+# Upgrade pip
+echo "[SETUP] Upgrading pip..."
+python -m pip install --upgrade pip --quiet
 echo ""
-echo "[SETUP] Activating conda environment..."
 
-# Activate the conda environment
-conda activate mt5-sentiment-bot
+# Install dependencies
+echo "[SETUP] Installing dependencies..."
+echo "This may take 5-10 minutes on first run..."
+echo ""
+
+pip install -r requirements.txt
 if [ $? -ne 0 ]; then
-    echo "[ERROR] Failed to activate conda environment"
     echo ""
-    echo "Try these solutions:"
-    echo "1. Restart your terminal"
-    echo "2. Run: conda init bash (or conda init zsh for macOS)"
-    echo "3. Delete and recreate: conda env remove -n mt5-sentiment-bot"
+    echo "[ERROR] Failed to install dependencies"
+    echo ""
+    echo "Common solutions:"
+    echo "  1. Check your internet connection"
+    echo "  2. Try: python -m pip install --upgrade pip"
+    echo "  3. Delete venv and run again: rm -rf venv && ./start_bot.sh"
+    echo ""
+    echo "For TA-Lib installation issues:"
+    echo "  - Ubuntu/Debian: sudo apt install build-essential python3-dev libta-lib-dev"
+    echo "  - macOS: brew install ta-lib"
     echo ""
     exit 1
 fi
 
-echo "[OK] Conda environment activated"
-echo "Environment: mt5-sentiment-bot"
 echo ""
-
-# Verify key packages are installed
-echo "[SETUP] Verifying installation..."
-python -c "import streamlit" &> /dev/null
-if [ $? -ne 0 ]; then
-    echo "[WARNING] Streamlit not found, attempting to install missing packages..."
-    conda env update -f environment.yml
-fi
-
-python -c "import talib" &> /dev/null
-if [ $? -ne 0 ]; then
-    echo "[WARNING] TA-Lib not properly installed"
-    echo "Attempting to install from conda-forge..."
-    conda install -c conda-forge ta-lib -y
-    if [ $? -ne 0 ]; then
-        echo "[ERROR] TA-Lib installation failed"
-        echo "Try manually: conda install -c conda-forge ta-lib"
-        exit 1
-    fi
-fi
-
-echo "[OK] All packages verified"
+echo "[OK] All dependencies installed"
 echo ""
 
 # Create necessary directories
@@ -159,7 +137,7 @@ echo "========================================"
 echo "Starting MT5 Sentiment Analysis Bot..."
 echo "========================================"
 echo ""
-echo "[INFO] Using Anaconda environment: mt5-sentiment-bot"
+echo "[INFO] Using Python virtual environment"
 echo "[INFO] Dashboard will open in your browser automatically"
 echo "[INFO] Press Ctrl+C to stop the bot"
 echo ""
@@ -185,5 +163,5 @@ fi
 
 echo ""
 echo "To restart the bot, run this script again: ./start_bot.sh"
-echo "To deactivate conda: conda deactivate"
+echo "To deactivate venv: deactivate"
 echo ""

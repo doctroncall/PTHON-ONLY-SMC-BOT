@@ -14,21 +14,21 @@ A professional, production-grade Python/Streamlit application that analyzes MT5 
 - **PDF Reports**: Downloadable daily, weekly, and monthly performance reports
 - **Detailed Logging**: Comprehensive logging for debugging and monitoring
 
-## 🚀 Quick Start (Anaconda)
+## 🚀 Quick Start (Pure Python)
 
 ### Prerequisites
 
-- **Anaconda or Miniconda** (recommended for stability)
+- **Python 3.11+** (no Conda required!)
 - **MetaTrader 5** account access
 - Internet connection (first-time setup)
 
 ### Installation (Automated!)
 
-**Step 1: Install Anaconda/Miniconda**
+**Step 1: Install Python**
 
-Choose one:
-- **Anaconda** (full): https://www.anaconda.com/download
-- **Miniconda** (minimal): https://docs.conda.io/en/latest/miniconda.html
+Download Python 3.11 or higher:
+- **Python.org**: https://www.python.org/downloads/
+- Make sure to check "Add Python to PATH" during installation
 
 **Step 2: Run the launcher**
 
@@ -39,16 +39,17 @@ start_bot.bat
 
 #### Linux/Mac:
 ```bash
+chmod +x start_bot.sh
 ./start_bot.sh
 ```
 
 **That's it!** The script automatically:
-- ✅ Creates conda environment
-- ✅ Installs all dependencies (including TA-Lib!)
+- ✅ Creates Python virtual environment
+- ✅ Installs all dependencies from requirements.txt
 - ✅ Sets up database
 - ✅ Launches dashboard
 
-**First run:** 5-15 minutes (one-time setup)  
+**First run:** 5-10 minutes (one-time setup)  
 **Subsequent runs:** Instant!
 
 Dashboard opens at: **http://localhost:8501**
@@ -59,23 +60,32 @@ Dashboard opens at: **http://localhost:8501**
 
 If you prefer manual setup:
 
-1. **Create conda environment**
+1. **Create virtual environment**
    ```bash
-   conda env create -f environment.yml
+   python -m venv venv
    ```
 
 2. **Activate environment**
    ```bash
-   conda activate mt5-sentiment-bot
+   # Windows
+   venv\Scripts\activate
+   
+   # Linux/Mac
+   source venv/bin/activate
    ```
 
-3. **Configure environment variables**
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment variables**
    ```bash
    cp .env.example .env
    # Edit .env with your MT5 credentials
    ```
 
-4. **Run the application**
+5. **Run the application**
    ```bash
    streamlit run app.py
    ```

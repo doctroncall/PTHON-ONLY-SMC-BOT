@@ -106,10 +106,10 @@ These fixes ensure you won't encounter this issue again:
 | Issue | Solution |
 |-------|----------|
 | Missing loguru | `fix_loguru.bat` |
-| Missing other package | `conda env update -f environment.yml` |
+| Missing other package | `pip install -r requirements.txt` |
 | Check all dependencies | `verify_dependencies.bat` |
-| Start the bot | `conda smc.bat` |
-| Environment broken | `conda env remove -n smc_bot` then `conda env create -f environment.yml` |
+| Start the bot | `start_bot.bat` (Windows) or `./start_bot.sh` (Linux/Mac) |
+| Environment broken | Delete `venv` folder and run `start_bot.bat` again |
 
 ---
 
