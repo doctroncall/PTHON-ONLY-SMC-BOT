@@ -11,7 +11,8 @@ from src.indicators.technical import TechnicalIndicators
 from src.indicators.smc import SMCAnalyzer
 from src.indicators.calculator import IndicatorCalculator
 from .confidence_scorer import ConfidenceScorer
-from config.settings import SentimentConfig
+from .regime_detector import RegimeDetector  # v2.0
+from config.settings import SentimentConfig, RegimeConfig  # v2.0
 from src.utils.logger import get_logger
 
 logger = get_logger()
@@ -55,7 +56,9 @@ class SentimentEngine:
         self.smc_analyzer = SMCAnalyzer()
         self.calculator = IndicatorCalculator()
         self.confidence_scorer = ConfidenceScorer()
+        self.regime_detector = RegimeDetector()  # v2.0
         self.config = SentimentConfig
+        self.regime_config = RegimeConfig  # v2.0
         self.logger = logger
     
     def analyze_sentiment(
@@ -84,6 +87,22 @@ class SentimentEngine:
             # Get SMC analysis
             smc_signals = self._analyze_smc(df)
             
+            # v2.0: Get market regime analysis (if enabled)
+            regime_data = None
+            if self.regime_config.ENABLE_REGIME_DETECTION and self.regime_config.AUTO_DETECT_REGIME:
+                try:
+                    regime_data = self.regime_detector.detect_regime(
+                        df, 
+                        lookback=self.regime_config.REGIME_LOOKBACK_BARS
+                    )
+                    self.logger.info(
+                        f"Regime detected: {regime_data['composite']['favorability']}", 
+                        category="analysis"
+                    )
+                except Exception as e:
+                    self.logger.warning(f"Regime detection failed: {str(e)}", category="analysis")
+                    regime_data = None
+            
             # Aggregate signals
             sentiment_data = self._aggregate_signals(tech_signals, smc_signals)
             
@@ -93,6 +112,12 @@ class SentimentEngine:
                 tech_signals,
                 smc_signals
             )
+            
+            # v2.0: Adjust confidence based on regime favorability
+            if regime_data and self.regime_config.USE_REGIME_POSITION_SIZING:
+                favorability = regime_data['composite']['favorability']
+                multiplier = self.regime_config.REGIME_SIZE_MULTIPLIERS.get(favorability, 1.0)
+                confidence = confidence * multiplier
             
             # Determine risk level
             risk_level = self._assess_risk_level(
@@ -105,7 +130,8 @@ class SentimentEngine:
             insights = self._generate_insights(
                 sentiment_data,
                 tech_signals,
-                smc_signals
+                smc_signals,
+                regime_data  # v2.0: Include regime in insights
             )
             
             result = {
@@ -119,8 +145,16 @@ class SentimentEngine:
                 'smc_signals': smc_signals,
                 'insights': insights,
                 'price': df['Close'].iloc[-1],
-                'timestamp': datetime.now()
+                'timestamp': datetime.now(),
+                'regime': regime_data  # v2.0: Include regime data
             }
+            
+            # v2.0: Check regime filtering
+            if regime_data and self.regime_config.FILTER_BY_REGIME:
+                favorability = regime_data['composite']['favorability']
+                if favorability not in self.regime_config.ALLOWED_REGIMES:
+                    result['regime_warning'] = f"⚠️ Current regime ({favorability}) is not in allowed trading regimes"
+                    result['confidence'] = result['confidence'] * 0.5  # Reduce confidence if not in allowed regime
             
             self.logger.log_analysis(
                 symbol,
@@ -273,12 +307,41 @@ class SentimentEngine:
         self,
         sentiment_data: Dict[str, Any],
         tech_signals: Dict[str, Any],
-        smc_signals: Dict[str, Any]
+        smc_signals: Dict[str, Any],
+        regime_data: Optional[Dict[str, Any]] = None  # v2.0
     ) -> List[str]:
         """Generate actionable insights"""
         insights = []
         
         sentiment = sentiment_data['sentiment']
+        
+        # v2.0: Regime-based insights (priority - shown first)
+        if regime_data:
+            composite = regime_data.get('composite', {})
+            favorability = composite.get('favorability', 'UNKNOWN')
+            
+            if favorability == 'FAVORABLE':
+                insights.append("✅ FAVORABLE market regime - ideal trading conditions")
+            elif favorability == 'MODERATE':
+                insights.append("⚠️ MODERATE market regime - trade with caution")
+            elif favorability == 'CAUTIOUS':
+                insights.append("⚠️ CAUTIOUS regime - consider reducing exposure")
+            elif favorability == 'UNFAVORABLE':
+                insights.append("🛑 UNFAVORABLE regime - avoid trading or use minimal size")
+            
+            # Trend regime insight
+            trend = regime_data.get('trend', {})
+            if trend.get('is_trending'):
+                insights.append(f"Strong {trend.get('direction', '').lower()} trend detected (ADX: {trend.get('adx', 0):.1f})")
+            else:
+                insights.append("Market is ranging - trend-following strategies may struggle")
+            
+            # Volatility insight
+            vol = regime_data.get('volatility', {})
+            if vol.get('regime') in ['VERY_HIGH', 'HIGH']:
+                insights.append(f"⚠️ {vol.get('regime').replace('_', ' ')} volatility - reduce position size")
+            elif vol.get('regime') == 'VERY_LOW':
+                insights.append("📊 Very low volatility - potential breakout ahead")
         
         # Market structure insight
         if 'market_structure' in smc_signals:
