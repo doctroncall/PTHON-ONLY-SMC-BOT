@@ -231,6 +231,48 @@ class HealthConfig:
     ACCURACY_CRITICAL_THRESHOLD: float = 0.50
 
 
+class RegimeConfig:
+    """Market Regime Detection Configuration (v2.0)"""
+    # Enable regime-based features
+    ENABLE_REGIME_DETECTION: bool = os.getenv("ENABLE_REGIME_DETECTION", "True").lower() == "true"
+    REGIME_LOOKBACK_BARS: int = int(os.getenv("REGIME_LOOKBACK_BARS", "50"))
+    
+    # Auto regime detection during analysis
+    AUTO_DETECT_REGIME: bool = os.getenv("AUTO_DETECT_REGIME", "False").lower() == "true"
+    
+    # Regime-based filtering
+    FILTER_BY_REGIME: bool = os.getenv("FILTER_BY_REGIME", "False").lower() == "true"
+    ALLOWED_REGIMES: List[str] = os.getenv(
+        "ALLOWED_REGIMES",
+        "FAVORABLE,MODERATE"  # Only trade in favorable/moderate conditions
+    ).split(",")
+    
+    # Regime-based position sizing
+    USE_REGIME_POSITION_SIZING: bool = os.getenv("USE_REGIME_POSITION_SIZING", "False").lower() == "true"
+    REGIME_SIZE_MULTIPLIERS = {
+        "FAVORABLE": 1.0,      # Full position size
+        "MODERATE": 0.7,       # 70% position size
+        "CAUTIOUS": 0.4,       # 40% position size
+        "UNFAVORABLE": 0.0     # No trading
+    }
+    
+    # Regime thresholds
+    ADX_TRENDING_THRESHOLD: float = 25.0
+    ADX_STRONG_THRESHOLD: float = 40.0
+    EFFICIENCY_THRESHOLD: float = 0.5
+    
+    # Volatility percentile thresholds
+    VOL_VERY_LOW: float = 0.2
+    VOL_LOW: float = 0.4
+    VOL_NORMAL_MAX: float = 0.7
+    VOL_HIGH: float = 0.9
+    
+    # Volume percentile thresholds
+    VOLUME_DRY: float = 0.25
+    VOLUME_NORMAL_MAX: float = 0.75
+    VOLUME_ELEVATED: float = 0.95
+
+
 class PerformanceConfig:
     """Performance and Caching Configuration"""
     CACHE_ENABLED: bool = os.getenv("CACHE_ENABLED", "True").lower() == "true"
