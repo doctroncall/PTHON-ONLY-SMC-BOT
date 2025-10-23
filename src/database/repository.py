@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy import create_engine, and_, or_, func, desc
 from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any, Tuple
+from functools import lru_cache
 import json
 
 from .models import (
@@ -73,8 +74,9 @@ class DatabaseRepository:
         """Get symbol by name"""
         return self.session.query(Symbol).filter_by(name=name).first()
     
+    @lru_cache(maxsize=10)
     def get_all_symbols(self, active_only: bool = True) -> List[Symbol]:
-        """Get all symbols"""
+        """Get all symbols (cached)"""
         query = self.session.query(Symbol)
         if active_only:
             query = query.filter_by(active=True)
