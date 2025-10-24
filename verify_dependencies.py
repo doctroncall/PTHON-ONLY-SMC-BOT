@@ -123,12 +123,7 @@ def main():
     if failed_count == 0:
         print(f"{GREEN}✓ All {total} packages are installed!{RESET}")
         print(f"\n{GREEN}You're ready to run the bot!{RESET}")
-        
-        # Detect environment type and show appropriate command
-        if 'venv' in sys.prefix.lower() or sys.prefix.endswith('venv'):
-            print(f"\nTo start: {YELLOW}run_bot.bat{RESET} (Windows) or {YELLOW}./run_bot.sh{RESET} (Linux/Mac)")
-        else:
-            print(f"\nTo start: {YELLOW}run_bot.bat{RESET} or {YELLOW}conda smc.bat{RESET}")
+        print(f"\nTo start: {YELLOW}start_bot.bat{RESET} (Windows) or {YELLOW}./start_bot.sh{RESET} (Linux/Mac)")
     else:
         print(f"{YELLOW}⚠ {passed}/{total} packages installed{RESET}")
         print(f"{RED}✗ {failed_count} package(s) missing{RESET}\n")
@@ -138,24 +133,9 @@ def main():
             print(f"  • {display_name} ({import_name})")
         
         print(f"\n{YELLOW}How to fix:{RESET}")
-        
-        # Detect environment and show appropriate fix
-        if 'venv' in sys.prefix.lower() or sys.prefix.endswith('venv'):
-            print(f"  {BLUE}Using Python venv:{RESET}")
-            print(f"    pip install -r requirements.txt")
-            print(f"  Or manually install missing packages:")
-            print(f"    pip install <package_name>")
-        elif 'conda' in sys.prefix.lower() or 'anaconda' in sys.prefix.lower():
-            print(f"  {BLUE}Using Conda:{RESET}")
-            print(f"    conda env update -f environment.yml")
-            print(f"  Or manually install missing packages:")
-            print(f"    conda install -c conda-forge <package_name>")
-        else:
-            print(f"  {BLUE}No virtual environment detected!{RESET}")
-            print(f"  Option 1 - Python venv (recommended):")
-            print(f"    setup_venv.bat (Windows) or ./setup_venv.sh (Linux/Mac)")
-            print(f"  Option 2 - Conda:")
-            print(f"    conda env update -f environment.yml")
+        print(f"  1. Run: {BLUE}pip install -r requirements.txt{RESET}")
+        print(f"  2. Or manually install missing packages:")
+        print(f"     {BLUE}pip install <package_name>{RESET}")
         
         # Special note for critical packages
         critical_missing = [name for name, imp, _ in failed if imp in ['loguru', 'streamlit', 'MetaTrader5']]
@@ -163,6 +143,7 @@ def main():
             print(f"\n{RED}⚠ CRITICAL: The following essential packages are missing:{RESET}")
             for pkg in critical_missing:
                 print(f"     • {pkg}")
+            print(f"\n  Quick fix: {BLUE}pip install {' '.join(critical_missing)}{RESET}")
     
     print(f"{BLUE}{'='*60}{RESET}\n")
     
@@ -171,14 +152,13 @@ def main():
     print(f"  Version: {sys.version.split()[0]}")
     print(f"  Path: {sys.executable}")
     
-    # Check environment type
-    if 'venv' in sys.prefix.lower() or sys.prefix.endswith('venv'):
-        print(f"  {GREEN}✓ Running in Python venv{RESET}")
-    elif 'conda' in sys.prefix.lower() or 'anaconda' in sys.prefix.lower():
-        print(f"  {GREEN}✓ Running in Conda environment{RESET}")
+    # Check if in virtual environment
+    if hasattr(sys, 'real_prefix') or (hasattr(sys, 'base_prefix') and sys.base_prefix != sys.prefix):
+        print(f"  {GREEN}✓ Running in virtual environment{RESET}")
     else:
-        print(f"  {YELLOW}⚠ No virtual environment detected{RESET}")
-        print(f"     Recommended: Run {BLUE}setup_venv.bat{RESET} or {BLUE}./setup_venv.sh{RESET}")
+        print(f"  {YELLOW}⚠ Not running in virtual environment{RESET}")
+        print(f"     Activate with: {BLUE}venv\\Scripts\\activate{RESET} (Windows)")
+        print(f"                 or: {BLUE}source venv/bin/activate{RESET} (Linux/Mac)")
     
     print()
     

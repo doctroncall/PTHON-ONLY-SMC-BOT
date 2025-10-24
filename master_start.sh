@@ -1,6 +1,6 @@
 #!/bin/bash
 # ================================================================================
-#  SMC TRADING BOT - MASTER STARTUP
+#  SMC TRADING BOT - MASTER STARTUP (Pure Python)
 #  Complete automated setup, verification, and launch
 # ================================================================================
 
@@ -13,7 +13,7 @@ NC='\033[0m'
 
 echo ""
 echo "================================================================================"
-echo "  SMC TRADING BOT - MASTER STARTUP v2.0"
+echo "  SMC TRADING BOT - MASTER STARTUP v3.0 (Pure Python)"
 echo "================================================================================"
 echo ""
 echo -e "${BLUE}[INFO]${NC} Starting comprehensive bot initialization..."
@@ -27,54 +27,41 @@ echo ""
 
 PYTHON_CMD=""
 VENV_ACTIVE=0
-CONDA_ACTIVE=0
 
 # Check if we're in a venv
 if [ -f "venv/bin/python" ]; then
     echo -e "${GREEN}[OK]${NC} Python venv detected at: venv/"
     PYTHON_CMD="venv/bin/python"
     VENV_ACTIVE=1
-elif command -v conda &> /dev/null; then
-    echo -e "${GREEN}[OK]${NC} Conda detected in PATH"
-    CONDA_ACTIVE=1
-    
-    # Check if conda environment exists
-    if conda env list | grep -q "smc_bot"; then
-        echo -e "${GREEN}[OK]${NC} Conda environment 'smc_bot' found"
-        source "$(conda info --base)/etc/profile.d/conda.sh"
-        conda activate smc_bot
-        PYTHON_CMD="python"
-    else
-        echo -e "${YELLOW}[WARNING]${NC} Conda found but 'smc_bot' environment not created"
-        echo -e "${BLUE}[INFO]${NC} Creating environment..."
-        conda env create -f environment.yml
-        conda activate smc_bot
-        PYTHON_CMD="python"
-    fi
 elif command -v python3 &> /dev/null; then
     echo -e "${GREEN}[OK]${NC} Python3 found in PATH"
     PYTHON_CMD="python3"
 else
     echo -e "${RED}[ERROR]${NC} No Python installation found!"
     echo ""
-    echo "Please install Python 3.11+ or run:"
-    echo "  - ./setup_venv.sh  (recommended)"
-    echo "  - conda env create -f environment.yml"
+    echo "Please install Python 3.11+ from: https://www.python.org/downloads/"
+    echo ""
+    echo "Or install via package manager:"
+    echo "  - Ubuntu/Debian: sudo apt install python3.11 python3.11-venv"
+    echo "  - macOS: brew install python@3.11"
     echo ""
     exit 1
 fi
 
-# If no venv and no conda, create venv
-if [ $VENV_ACTIVE -eq 0 ] && [ $CONDA_ACTIVE -eq 0 ]; then
-    if [ ! -d "venv" ]; then
-        echo ""
-        echo -e "${BLUE}[SETUP]${NC} No environment found. Creating Python venv..."
-        echo ""
-        chmod +x setup_venv.sh
-        ./setup_venv.sh
-        PYTHON_CMD="venv/bin/python"
-        VENV_ACTIVE=1
+# If no venv, create one
+if [ $VENV_ACTIVE -eq 0 ] && [ ! -d "venv" ]; then
+    echo ""
+    echo -e "${BLUE}[SETUP]${NC} Creating Python virtual environment..."
+    echo ""
+    python3 -m venv venv
+    if [ $? -ne 0 ]; then
+        echo -e "${RED}[ERROR]${NC} Failed to create venv"
+        echo "Try: sudo apt install python3-venv (Ubuntu/Debian)"
+        exit 1
     fi
+    PYTHON_CMD="venv/bin/python"
+    VENV_ACTIVE=1
+    echo -e "${GREEN}[OK]${NC} Virtual environment created"
 fi
 
 echo -e "${GREEN}[OK]${NC} Python ready: $PYTHON_CMD"
@@ -107,8 +94,6 @@ if [ $VENV_ACTIVE -eq 1 ]; then
         source venv/bin/activate
         echo -e "${GREEN}[OK]${NC} Virtual environment activated"
     fi
-elif [ $CONDA_ACTIVE -eq 1 ]; then
-    echo -e "${GREEN}[OK]${NC} Conda environment activated"
 else
     echo -e "${GREEN}[OK]${NC} Using system Python"
 fi
@@ -148,16 +133,11 @@ if [ $DEPS_OK -eq 0 ]; then
     echo -e "${RED}[ERROR]${NC} Missing dependencies:$MISSING_DEPS"
     echo ""
     echo -e "${BLUE}[ATTEMPTING AUTO-FIX]${NC}"
-    echo "Installing missing packages..."
+    echo "Installing missing packages from requirements.txt..."
+    echo "This may take 5-10 minutes..."
     echo ""
     
-    if [ $VENV_ACTIVE -eq 1 ]; then
-        pip install -r requirements.txt
-    elif [ $CONDA_ACTIVE -eq 1 ]; then
-        conda env update -f environment.yml
-    else
-        pip install -r requirements.txt
-    fi
+    pip install -r requirements.txt
     
     echo ""
     echo -e "${BLUE}[INFO]${NC} Packages installed. Re-verifying..."
@@ -166,8 +146,16 @@ if [ $DEPS_OK -eq 0 ]; then
     # Re-verify
     $PYTHON_CMD -c "import streamlit, MetaTrader5, pandas, numpy, talib, loguru" &> /dev/null
     if [ $? -ne 0 ]; then
-        echo -e "${RED}[ERROR]${NC} Auto-fix failed. Please run:"
-        echo "  ./setup_venv.sh"
+        echo -e "${RED}[ERROR]${NC} Auto-fix failed."
+        echo ""
+        echo "For TA-Lib on Linux:"
+        echo "  sudo apt install build-essential python3-dev libta-lib-dev"
+        echo "  pip install TA-Lib"
+        echo ""
+        echo "For TA-Lib on macOS:"
+        echo "  brew install ta-lib"
+        echo "  pip install TA-Lib"
+        echo ""
         exit 1
     else
         echo -e "${GREEN}[OK]${NC} All dependencies now available!"
@@ -223,11 +211,14 @@ echo ""
 echo -e "${BLUE}[INFO]${NC} The bot dashboard will open in your browser"
 echo -e "${BLUE}[INFO]${NC} Default URL: http://localhost:8501"
 echo ""
-echo -e "${GREEN}[v2.0 FEATURES ACTIVE]${NC}"
+echo -e "${GREEN}[v3.0 FEATURES ACTIVE - PURE PYTHON + EXPERT ML]${NC}"
 echo "  - Multi-timeframe analysis"
 echo "  - Smart Money Concepts (SMC)"
 echo "  - Market Regime Detection"
-echo "  - ML Model Training"
+echo "  - ML Model Training with Optuna"
+echo "  - 60+ Advanced Features"
+echo "  - SHAP Feature Selection"
+echo "  - Simple MT5 Connector (centralized)"
 echo "  - Advanced sentiment engine"
 echo ""
 echo "Press Ctrl+C to stop the bot"

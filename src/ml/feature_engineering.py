@@ -183,7 +183,7 @@ class FeatureEngineer:
         return df
     
     def _add_candlestick_patterns(self, df: pd.DataFrame) -> pd.DataFrame:
-        """Add candlestick pattern features"""
+        """Add candlestick pattern features (20+ patterns)"""
         try:
             # Body and wick sizes
             body = abs(df['Close'] - df['Open'])
@@ -191,8 +191,11 @@ class FeatureEngineer:
             lower_wick = df[['Open', 'Close']].min(axis=1) - df['Low']
             candle_range = df['High'] - df['Low']
             
+            # Avoid division by zero
+            candle_range = candle_range.replace(0, np.nan)
+            
             # Doji (small body, long wicks)
-            df['is_doji'] = ((body / candle_range) < 0.1).astype(int)
+            df['is_doji'] = ((body / candle_range) < 0.1).fillna(0).astype(int)
             
             # Hammer / Hanging Man (small upper wick, long lower wick, small body)
             df['is_hammer'] = ((lower_wick > 2 * body) & 

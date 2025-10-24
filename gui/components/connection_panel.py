@@ -77,22 +77,25 @@ def render_connection_panel():
             type="primary",
             use_container_width=True
         ):
-            with st.spinner("Connecting to MT5..."):
+            with st.spinner("Connecting to MT5..." if not is_connected else "Reconnecting to MT5..."):
                 try:
+                    # Use reconnect() method which handles proper disconnect/wait/connect
                     if is_connected:
-                        connection.disconnect()
-                    success = connection.connect()
-                    message = "Connected" if success else "Failed"
+                        success = connection.reconnect()
+                    else:
+                        success = connection.connect()
+                    
+                    if success:
+                        message = "✅ Connected successfully!"
+                        st.success(message)
+                        st.balloons()
+                        st.rerun()
+                    else:
+                        message = f"❌ Connection failed. Check console for details."
+                        st.error(message)
                 except Exception as e:
-                    success = False
-                    message = str(e)
-                
-                if success:
-                    st.success(f"✅ {message}")
-                    st.balloons()
-                    st.rerun()
-                else:
-                    st.error(f"❌ {message}")
+                    st.error(f"❌ Connection error: {str(e)}")
+                    st.info("💡 Make sure MT5 is closed before connecting. The bot will connect automatically.")
     
     with col2:
         if st.button(

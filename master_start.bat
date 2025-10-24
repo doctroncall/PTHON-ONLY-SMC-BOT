@@ -1,13 +1,13 @@
 @echo off
 setlocal enabledelayedexpansion
 REM ================================================================================
-REM  SMC TRADING BOT - MASTER STARTUP
+REM  SMC TRADING BOT - MASTER STARTUP (Pure Python)
 REM  Complete automated setup, verification, and launch
 REM ================================================================================
 
 echo.
 echo ================================================================================
-echo   SMC TRADING BOT - MASTER STARTUP v2.0
+echo   SMC TRADING BOT - MASTER STARTUP v3.0 (Pure Python)
 echo ================================================================================
 echo.
 echo [INFO] Starting comprehensive bot initialization...
@@ -21,7 +21,6 @@ echo.
 
 set "PYTHON_CMD="
 set "VENV_ACTIVE=0"
-set "CONDA_ACTIVE=0"
 
 REM Check if we're in a venv
 if exist "venv\Scripts\python.exe" (
@@ -29,14 +28,6 @@ if exist "venv\Scripts\python.exe" (
     set "PYTHON_CMD=venv\Scripts\python.exe"
     set "VENV_ACTIVE=1"
     goto :python_found
-)
-
-REM Check if we're in conda
-where conda >nul 2>&1
-if not errorlevel 1 (
-    echo [OK] Conda detected in PATH
-    set "CONDA_ACTIVE=1"
-    goto :check_conda_env
 )
 
 REM Check standard Python
@@ -49,52 +40,11 @@ if not errorlevel 1 (
 
 echo [ERROR] No Python installation found!
 echo.
-echo Please install Python 3.11+ or run one of these:
-echo   - setup_venv.bat  (recommended - pure Python)
-echo   - conda smc.bat   (if you have Anaconda)
+echo Please install Python 3.11+ from: https://www.python.org/downloads/
+echo Make sure to check "Add Python to PATH" during installation
 echo.
 pause
 exit /b 1
-
-:check_conda_env
-REM Check if conda environment exists
-conda env list | findstr "smc_bot" >nul 2>&1
-if not errorlevel 1 (
-    echo [OK] Conda environment 'smc_bot' found
-    call conda activate smc_bot
-    set "PYTHON_CMD=python"
-    goto :python_found
-)
-echo [WARNING] Conda found but 'smc_bot' environment not created
-echo [INFO] Will try to use system Python or create venv
-goto :create_venv
-
-:create_venv
-echo.
-echo [SETUP] No environment found. Creating Python venv...
-echo.
-
-REM Check if we have Python available
-where python >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Python not found. Please install Python 3.11+
-    echo Download from: https://www.python.org/downloads/
-    pause
-    exit /b 1
-)
-
-echo [INFO] Running automated setup...
-call setup_venv.bat
-if errorlevel 1 (
-    echo [ERROR] Setup failed. Please check errors above.
-    pause
-    exit /b 1
-)
-
-echo [OK] Setup completed successfully
-set "PYTHON_CMD=venv\Scripts\python.exe"
-set "VENV_ACTIVE=1"
-goto :python_found
 
 :python_found
 echo [OK] Python ready: %PYTHON_CMD%
@@ -116,22 +66,27 @@ if errorlevel 1 (
 echo.
 
 REM ================================================================================
-REM STEP 3: Activate Environment
+REM STEP 3: Create/Activate Virtual Environment
 REM ================================================================================
-echo [3/7] Activating environment...
+echo [3/7] Setting up virtual environment...
 echo.
 
-if %VENV_ACTIVE%==1 (
-    if exist "venv\Scripts\activate.bat" (
-        call venv\Scripts\activate.bat
-        echo [OK] Virtual environment activated
+if %VENV_ACTIVE%==0 (
+    echo [INFO] Creating Python virtual environment...
+    python -m venv venv
+    if errorlevel 1 (
+        echo [ERROR] Failed to create venv!
+        pause
+        exit /b 1
     )
-) else if %CONDA_ACTIVE%==1 (
-    call conda activate smc_bot >nul 2>&1
-    echo [OK] Conda environment activated
-) else (
-    echo [OK] Using system Python
+    set "PYTHON_CMD=venv\Scripts\python.exe"
+    set "VENV_ACTIVE=1"
+    echo [OK] Virtual environment created
 )
+
+REM Activate venv
+call venv\Scripts\activate.bat
+echo [OK] Virtual environment activated
 echo.
 
 REM ================================================================================
@@ -209,16 +164,11 @@ if %DEPS_OK%==0 (
     echo [ERROR] Missing dependencies:%MISSING_DEPS%
     echo.
     echo [ATTEMPTING AUTO-FIX]
-    echo Installing missing packages...
+    echo Installing missing packages from requirements.txt...
+    echo This may take 5-10 minutes...
     echo.
     
-    if %VENV_ACTIVE%==1 (
-        pip install -r requirements.txt
-    ) else if %CONDA_ACTIVE%==1 (
-        conda env update -f environment.yml
-    ) else (
-        pip install -r requirements.txt
-    )
+    pip install -r requirements.txt
     
     echo.
     echo [INFO] Packages installed. Re-verifying...
@@ -228,13 +178,9 @@ if %DEPS_OK%==0 (
     %PYTHON_CMD% -c "import streamlit, MetaTrader5, pandas, numpy, talib, loguru" >nul 2>&1
     if errorlevel 1 (
         echo [ERROR] Auto-fix failed. Please run:
-        if %VENV_ACTIVE%==1 (
-            echo   pip install -r requirements.txt
-        ) else if %CONDA_ACTIVE%==1 (
-            echo   conda env update -f environment.yml
-        ) else (
-            echo   setup_venv.bat
-        )
+        echo   pip install -r requirements.txt
+        echo.
+        echo For TA-Lib issues, see: https://github.com/cgohlke/talib-build/releases
         pause
         exit /b 1
     ) else (
@@ -294,12 +240,14 @@ echo.
 echo [INFO] The bot dashboard will open in your browser
 echo [INFO] Default URL: http://localhost:8501
 echo.
-echo [v2.0 FEATURES ACTIVE]
+echo [v3.0 FEATURES ACTIVE - PURE PYTHON]
 echo   - Multi-timeframe analysis
 echo   - Smart Money Concepts (SMC)
 echo   - Market Regime Detection
-echo   - ML Model Training
-echo   - Advanced sentiment engine
+echo   - ML Model Training with Optuna
+echo   - Advanced Feature Engineering (60+ features)
+echo   - SHAP Feature Selection
+echo   - Simple MT5 Connector (NEW!)
 echo.
 echo Press Ctrl+C to stop the bot
 echo.

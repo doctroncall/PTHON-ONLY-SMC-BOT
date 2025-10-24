@@ -1,404 +1,367 @@
 """
 Market Regime Detection
-Identifies market conditions (trending/ranging, volatility states)
+Identify and classify market conditions (trending/ranging, volatility levels, etc.)
 """
-import numpy as np
 import pandas as pd
-from typing import Dict, Any, Optional, Tuple
-from enum import Enum
+import numpy as np
+from typing import Dict, Any, Tuple, Optional
+from sklearn.cluster import KMeans
+import warnings
 
-from src.indicators.technical import TechnicalIndicators
+try:
+    from hmmlearn import hmm
+    HMM_AVAILABLE = True
+except ImportError:
+    HMM_AVAILABLE = False
+
 from src.utils.logger import get_logger
 
+warnings.filterwarnings('ignore')
 logger = get_logger()
-
-
-class TrendRegime(Enum):
-    """Trend regime states"""
-    STRONG_UPTREND = "STRONG_UPTREND"
-    UPTREND = "UPTREND"
-    RANGING = "RANGING"
-    DOWNTREND = "DOWNTREND"
-    STRONG_DOWNTREND = "STRONG_DOWNTREND"
-
-
-class VolatilityRegime(Enum):
-    """Volatility regime states"""
-    VERY_LOW = "VERY_LOW"
-    LOW = "LOW"
-    NORMAL = "NORMAL"
-    HIGH = "HIGH"
-    VERY_HIGH = "VERY_HIGH"
-
-
-class VolumeRegime(Enum):
-    """Volume regime states"""
-    DRY = "DRY"
-    NORMAL = "NORMAL"
-    ELEVATED = "ELEVATED"
-    SURGE = "SURGE"
 
 
 class RegimeDetector:
     """
-    Detect market regimes for adaptive trading
+    Detect and classify market regimes
     
-    Identifies:
-    - Trend regime (trending vs ranging)
-    - Volatility regime (calm vs volatile)
-    - Volume regime (thin vs heavy)
-    
-    Use cases:
-    - Train separate models per regime
-    - Adjust position sizing
-    - Filter trades by regime
-    - Adapt indicators
+    Regimes:
+    - Volatility: low/normal/high
+    - Trend: trending/ranging
+    - Volume: dry/normal/surge
+    - Hidden states via HMM
     """
     
     def __init__(self):
         """Initialize regime detector"""
-        self.tech_indicators = TechnicalIndicators()
         self.logger = logger
-    
-    def detect_regime(
-        self,
-        df: pd.DataFrame,
-        lookback: int = 50
-    ) -> Dict[str, Any]:
-        """
-        Detect current market regime
-        
-        Args:
-            df: DataFrame with OHLCV data
-            lookback: Lookback period for regime calculation
-            
-        Returns:
-            Dict with regime information
-        """
-        regime = {
-            'trend': self.detect_trend_regime(df, lookback),
-            'volatility': self.detect_volatility_regime(df, lookback),
-            'volume': self.detect_volume_regime(df, lookback),
-            'composite': None
-        }
-        
-        # Composite regime score
-        regime['composite'] = self._calculate_composite_regime(regime)
-        
-        return regime
-    
-    def detect_trend_regime(
-        self,
-        df: pd.DataFrame,
-        lookback: int = 50
-    ) -> Dict[str, Any]:
-        """
-        Detect trend regime
-        
-        Uses multiple indicators:
-        - ADX (trend strength)
-        - Price vs moving averages
-        - Higher highs / lower lows
-        - Price efficiency
-        
-        Returns:
-            Dict with trend regime details
-        """
-        # Calculate ADX
-        adx_data = self.tech_indicators.calculate_adx(df)
-        adx = adx_data['adx'].iloc[-1]
-        plus_di = adx_data['plus_di'].iloc[-1]
-        minus_di = adx_data['minus_di'].iloc[-1]
-        
-        # Calculate moving averages
-        ema_20 = self.tech_indicators.calculate_ema(df, 20).iloc[-1]
-        ema_50 = self.tech_indicators.calculate_ema(df, 50).iloc[-1]
-        sma_200 = self.tech_indicators.calculate_sma(df, 200).iloc[-1]
-        
-        current_price = df['Close'].iloc[-1]
-        
-        # Price efficiency (trending vs choppy)
-        price_change = abs(df['Close'].iloc[-1] - df['Close'].iloc[-lookback])
-        path_length = df['Close'].diff().abs().iloc[-lookback:].sum()
-        efficiency = price_change / path_length if path_length > 0 else 0
-        
-        # Determine regime
-        is_trending = adx > 25
-        is_strong_trend = adx > 40
-        
-        if is_trending:
-            if plus_di > minus_di:
-                if is_strong_trend and efficiency > 0.5:
-                    regime_type = TrendRegime.STRONG_UPTREND
-                else:
-                    regime_type = TrendRegime.UPTREND
-            else:
-                if is_strong_trend and efficiency > 0.5:
-                    regime_type = TrendRegime.STRONG_DOWNTREND
-                else:
-                    regime_type = TrendRegime.DOWNTREND
-        else:
-            regime_type = TrendRegime.RANGING
-        
-        return {
-            'regime': regime_type.value,
-            'adx': adx,
-            'efficiency': efficiency,
-            'is_trending': is_trending,
-            'direction': 'BULLISH' if plus_di > minus_di else 'BEARISH',
-            'strength': adx / 100,
-            'price_vs_ema20': (current_price / ema_20 - 1) * 100,
-            'price_vs_ema50': (current_price / ema_50 - 1) * 100,
-            'price_vs_sma200': (current_price / sma_200 - 1) * 100
-        }
+        self.current_regime = None
     
     def detect_volatility_regime(
         self,
         df: pd.DataFrame,
-        lookback: int = 50
-    ) -> Dict[str, Any]:
+        window: int = 20
+    ) -> pd.Series:
         """
-        Detect volatility regime
+        Classify volatility regime as low/normal/high
         
-        Uses:
-        - ATR (Average True Range)
-        - Historical volatility
-        - Bollinger Band width
-        
+        Args:
+            df: DataFrame with OHLCV data
+            window: Rolling window for volatility calculation
+            
         Returns:
-            Dict with volatility regime details
+            Series with regime labels (0=low, 1=normal, 2=high)
         """
-        # Calculate ATR
-        atr = self.tech_indicators.calculate_atr(df).iloc[-1]
-        atr_pct = (atr / df['Close'].iloc[-1]) * 100
+        try:
+            # Calculate returns volatility
+            returns = df['Close'].pct_change()
+            vol_short = returns.rolling(window).std()
+            vol_long = returns.rolling(window * 3).std()
+            
+            # Relative volatility
+            rel_vol = vol_short / vol_long
+            
+            # Classify into regimes
+            regime = pd.cut(
+                rel_vol,
+                bins=[0, 0.7, 1.3, np.inf],
+                labels=[0, 1, 2],  # low, normal, high
+                include_lowest=True
+            )
+            
+            # Forward fill NaN values
+            regime = regime.fillna(method='ffill').fillna(1)
+            
+            return regime.astype(int)
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting volatility regime: {e}", category="analysis")
+            return pd.Series([1] * len(df), index=df.index)
+    
+    def detect_trend_regime(
+        self,
+        df: pd.DataFrame,
+        adx_threshold: int = 25
+    ) -> pd.Series:
+        """
+        Classify as trending (1) or ranging (0)
         
-        # Historical ATR percentiles
-        atr_series = self.tech_indicators.calculate_atr(df)
-        atr_pct_series = (atr_series / df['Close']) * 100
-        
-        historical_atr_pct = atr_pct_series.iloc[-lookback:]
-        atr_percentile = (historical_atr_pct < atr_pct).mean()
-        
-        # Bollinger Bands width
-        bb = self.tech_indicators.calculate_bollinger_bands(df)
-        bb_width = ((bb['upper'].iloc[-1] - bb['lower'].iloc[-1]) / bb['middle'].iloc[-1]) * 100
-        
-        # Historical volatility
-        returns = df['Close'].pct_change()
-        hist_vol = returns.iloc[-lookback:].std() * np.sqrt(252) * 100  # Annualized
-        
-        # Determine regime
-        if atr_percentile < 0.2:
-            regime_type = VolatilityRegime.VERY_LOW
-        elif atr_percentile < 0.4:
-            regime_type = VolatilityRegime.LOW
-        elif atr_percentile < 0.7:
-            regime_type = VolatilityRegime.NORMAL
-        elif atr_percentile < 0.9:
-            regime_type = VolatilityRegime.HIGH
-        else:
-            regime_type = VolatilityRegime.VERY_HIGH
-        
-        return {
-            'regime': regime_type.value,
-            'atr_pct': atr_pct,
-            'atr_percentile': atr_percentile,
-            'bb_width': bb_width,
-            'historical_volatility': hist_vol,
-            'is_expanding': atr_pct > historical_atr_pct.mean()
-        }
+        Args:
+            df: DataFrame with indicators (needs 'adx' column)
+            adx_threshold: ADX threshold for trending
+            
+        Returns:
+            Series with regime labels (0=ranging, 1=trending)
+        """
+        try:
+            # Calculate ADX if not present
+            if 'adx' not in df.columns:
+                self.logger.warning("ADX not found, calculating basic trend regime", category="analysis")
+                # Simple EMA-based trend detection
+                ema_fast = df['Close'].ewm(span=20).mean()
+                ema_slow = df['Close'].ewm(span=50).mean()
+                ema_diff = (ema_fast - ema_slow).abs()
+                atr = df['High'].rolling(14).max() - df['Low'].rolling(14).min()
+                trending = (ema_diff > atr).astype(int)
+                return trending
+            
+            # ADX-based detection
+            adx = df['adx']
+            
+            # Trending if ADX > threshold
+            trending = (adx > adx_threshold).astype(int)
+            
+            # Confirm with directional movement
+            if 'ema_20' in df.columns and 'ema_50' in df.columns:
+                ema_diff = (df['ema_20'] - df['ema_50']).abs()
+                if 'atr' in df.columns:
+                    strong_trend = ema_diff > df['atr']
+                    trending = trending & strong_trend.astype(int)
+            
+            return trending
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting trend regime: {e}", category="analysis")
+            return pd.Series([0] * len(df), index=df.index)
     
     def detect_volume_regime(
         self,
         df: pd.DataFrame,
-        lookback: int = 50
-    ) -> Dict[str, Any]:
+        window: int = 20
+    ) -> pd.Series:
         """
-        Detect volume regime
-        
-        Uses:
-        - Volume vs moving average
-        - Volume percentiles
-        - OBV trend
-        
-        Returns:
-            Dict with volume regime details
-        """
-        if 'Volume' not in df.columns:
-            return {
-                'regime': VolumeRegime.NORMAL.value,
-                'relative_volume': 1.0,
-                'percentile': 0.5,
-                'obv_trend': 'NEUTRAL'
-            }
-        
-        current_volume = df['Volume'].iloc[-1]
-        volume_ma = df['Volume'].iloc[-lookback:].mean()
-        relative_volume = current_volume / volume_ma if volume_ma > 0 else 1.0
-        
-        # Volume percentile
-        historical_volume = df['Volume'].iloc[-lookback:]
-        volume_percentile = (historical_volume < current_volume).mean()
-        
-        # OBV trend
-        obv = self.tech_indicators.calculate_obv(df)
-        obv_ma = obv.iloc[-lookback:].mean()
-        obv_trend = 'RISING' if obv.iloc[-1] > obv_ma else 'FALLING'
-        
-        # Determine regime
-        if volume_percentile < 0.25:
-            regime_type = VolumeRegime.DRY
-        elif volume_percentile < 0.75:
-            regime_type = VolumeRegime.NORMAL
-        elif volume_percentile < 0.95:
-            regime_type = VolumeRegime.ELEVATED
-        else:
-            regime_type = VolumeRegime.SURGE
-        
-        return {
-            'regime': regime_type.value,
-            'relative_volume': relative_volume,
-            'percentile': volume_percentile,
-            'obv_trend': obv_trend
-        }
-    
-    def _calculate_composite_regime(self, regime: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Calculate composite regime score
-        
-        Combines trend, volatility, and volume into single assessment
-        """
-        trend_data = regime['trend']
-        vol_data = regime['volatility']
-        
-        # Trend favorability (-1 to 1)
-        if 'UPTREND' in trend_data['regime']:
-            trend_score = 0.5 if trend_data['regime'] == 'UPTREND' else 1.0
-        elif 'DOWNTREND' in trend_data['regime']:
-            trend_score = -0.5 if trend_data['regime'] == 'DOWNTREND' else -1.0
-        else:
-            trend_score = 0.0
-        
-        # Volatility favorability (0 to 1, higher is better for trading)
-        vol_map = {
-            'VERY_LOW': 0.2,
-            'LOW': 0.5,
-            'NORMAL': 1.0,
-            'HIGH': 0.7,
-            'VERY_HIGH': 0.3
-        }
-        vol_score = vol_map.get(vol_data['regime'], 0.5)
-        
-        # Trading favorability
-        is_trending = trend_data['is_trending']
-        is_good_volatility = vol_data['regime'] in ['NORMAL', 'LOW']
-        
-        if is_trending and is_good_volatility:
-            favorability = "FAVORABLE"
-        elif is_trending:
-            favorability = "MODERATE"
-        elif is_good_volatility:
-            favorability = "CAUTIOUS"
-        else:
-            favorability = "UNFAVORABLE"
-        
-        return {
-            'trend_score': trend_score,
-            'volatility_score': vol_score,
-            'favorability': favorability,
-            'is_trending': is_trending,
-            'is_stable_volatility': is_good_volatility
-        }
-    
-    def get_regime_label(self, df: pd.DataFrame, lookback: int = 50) -> int:
-        """
-        Get simple regime label for classification
+        Classify volume regime as dry/normal/surge
         
         Args:
-            df: DataFrame with OHLCV data
-            lookback: Lookback period
+            df: DataFrame with Volume column
+            window: Rolling window for volume average
             
         Returns:
-            Integer regime label:
-            0 = ranging/low_vol
-            1 = trending_up/normal_vol
-            2 = trending_down/normal_vol
-            3 = high_volatility
+            Series with regime labels (0=dry, 1=normal, 2=surge)
         """
-        regime = self.detect_regime(df, lookback)
-        
-        trend = regime['trend']['regime']
-        vol = regime['volatility']['regime']
-        
-        # High volatility gets its own class
-        if vol in ['HIGH', 'VERY_HIGH']:
-            return 3
-        
-        # Trending regimes
-        if 'UPTREND' in trend:
-            return 1
-        elif 'DOWNTREND' in trend:
-            return 2
-        else:
-            return 0  # Ranging
+        try:
+            # Calculate volume moving average
+            vol_ma = df['Volume'].rolling(window).mean()
+            
+            # Relative volume
+            rel_vol = df['Volume'] / vol_ma
+            
+            # Classify into regimes
+            regime = rel_vol.apply(
+                lambda x: 0 if x < 0.7 else (2 if x > 1.5 else 1)
+            )
+            
+            # Handle NaN values
+            regime = regime.fillna(1)
+            
+            return regime.astype(int)
+            
+        except Exception as e:
+            self.logger.error(f"Error detecting volume regime: {e}", category="analysis")
+            return pd.Series([1] * len(df), index=df.index)
     
-    def add_regime_features(
+    def detect_price_efficiency(
         self,
         df: pd.DataFrame,
-        lookback: int = 50
-    ) -> pd.DataFrame:
+        window: int = 10
+    ) -> pd.Series:
         """
-        Add regime features to DataFrame
+        Calculate price efficiency (trending vs choppy)
+        
+        Higher values = more efficient (trending)
+        Lower values = less efficient (choppy/ranging)
+        
+        Args:
+            df: DataFrame with Close prices
+            window: Lookback window
+            
+        Returns:
+            Series with efficiency scores (0-1)
+        """
+        try:
+            # Net price change
+            price_change = (df['Close'] - df['Close'].shift(window)).abs()
+            
+            # Total path length
+            path_length = df['Close'].diff().abs().rolling(window).sum()
+            
+            # Efficiency ratio
+            efficiency = (price_change / path_length).fillna(0.5)
+            
+            # Clip to [0, 1]
+            efficiency = efficiency.clip(0, 1)
+            
+            return efficiency
+            
+        except Exception as e:
+            self.logger.error(f"Error calculating price efficiency: {e}", category="analysis")
+            return pd.Series([0.5] * len(df), index=df.index)
+    
+    def detect_hidden_regimes_kmeans(
+        self,
+        df: pd.DataFrame,
+        n_regimes: int = 3
+    ) -> pd.Series:
+        """
+        Detect hidden regimes using K-means clustering
+        
+        Args:
+            df: DataFrame with price and volume data
+            n_regimes: Number of regimes to identify
+            
+        Returns:
+            Series with regime labels (0, 1, 2, ...)
+        """
+        try:
+            # Create features for clustering
+            returns = df['Close'].pct_change()
+            volatility = returns.rolling(20).std()
+            volume_ratio = df['Volume'] / df['Volume'].rolling(20).mean()
+            
+            # Combine features
+            features = pd.DataFrame({
+                'returns': returns,
+                'volatility': volatility,
+                'volume_ratio': volume_ratio
+            }).fillna(0)
+            
+            # Fit K-means
+            kmeans = KMeans(n_clusters=n_regimes, random_state=42, n_init=10)
+            regimes = kmeans.fit_predict(features)
+            
+            return pd.Series(regimes, index=df.index)
+            
+        except Exception as e:
+            self.logger.error(f"Error in K-means regime detection: {e}", category="analysis")
+            return pd.Series([0] * len(df), index=df.index)
+    
+    def detect_hidden_regimes_hmm(
+        self,
+        df: pd.DataFrame,
+        n_states: int = 3
+    ) -> Optional[pd.Series]:
+        """
+        Use Hidden Markov Model to detect market regimes
         
         Args:
             df: DataFrame with OHLCV data
-            lookback: Lookback period
+            n_states: Number of hidden states
             
         Returns:
-            DataFrame with added regime features
+            Series with regime labels or None if HMM not available
         """
-        df = df.copy()
+        if not HMM_AVAILABLE:
+            self.logger.warning("hmmlearn not available, skipping HMM detection", category="analysis")
+            return None
         
-        regimes = []
-        for i in range(len(df)):
-            if i < lookback:
-                regimes.append({
-                    'regime_trend': 0,
-                    'regime_volatility': 0,
-                    'regime_composite': 0
-                })
-            else:
-                df_window = df.iloc[:i+1]
-                regime = self.detect_regime(df_window, lookback)
-                
-                # Encode regimes as numbers
-                trend_map = {
-                    'STRONG_UPTREND': 2,
-                    'UPTREND': 1,
-                    'RANGING': 0,
-                    'DOWNTREND': -1,
-                    'STRONG_DOWNTREND': -2
-                }
-                
-                vol_map = {
-                    'VERY_LOW': -2,
-                    'LOW': -1,
-                    'NORMAL': 0,
-                    'HIGH': 1,
-                    'VERY_HIGH': 2
-                }
-                
-                regimes.append({
-                    'regime_trend': trend_map.get(regime['trend']['regime'], 0),
-                    'regime_volatility': vol_map.get(regime['volatility']['regime'], 0),
-                    'regime_composite': regime['composite']['trend_score']
-                })
+        try:
+            # Features for HMM
+            returns = df['Close'].pct_change()
+            volume_change = df['Volume'].pct_change()
+            
+            features = pd.DataFrame({
+                'returns': returns,
+                'volume': volume_change
+            }).fillna(0)
+            
+            # Fit Gaussian HMM
+            model = hmm.GaussianHMM(
+                n_components=n_states,
+                covariance_type='full',
+                n_iter=1000,
+                random_state=42
+            )
+            
+            model.fit(features.values)
+            
+            # Predict regimes
+            regimes = model.predict(features.values)
+            
+            return pd.Series(regimes, index=df.index)
+            
+        except Exception as e:
+            self.logger.error(f"Error in HMM regime detection: {e}", category="analysis")
+            return None
+    
+    def get_current_regime(
+        self,
+        df: pd.DataFrame
+    ) -> Dict[str, Any]:
+        """
+        Get comprehensive regime analysis for current market state
         
-        # Add to DataFrame
-        regime_df = pd.DataFrame(regimes, index=df.index)
-        df = pd.concat([df, regime_df], axis=1)
+        Args:
+            df: DataFrame with OHLCV and indicator data
+            
+        Returns:
+            Dict with all regime classifications
+        """
+        try:
+            regimes = {
+                'volatility': self.detect_volatility_regime(df).iloc[-1],
+                'trend': self.detect_trend_regime(df).iloc[-1],
+                'volume': self.detect_volume_regime(df).iloc[-1],
+                'efficiency': self.detect_price_efficiency(df).iloc[-1],
+                'cluster': self.detect_hidden_regimes_kmeans(df).iloc[-1],
+            }
+            
+            # Add HMM if available
+            hmm_regimes = self.detect_hidden_regimes_hmm(df)
+            if hmm_regimes is not None:
+                regimes['hmm_state'] = hmm_regimes.iloc[-1]
+            
+            # Human-readable labels
+            vol_labels = {0: 'low', 1: 'normal', 2: 'high'}
+            trend_labels = {0: 'ranging', 1: 'trending'}
+            volume_labels = {0: 'dry', 1: 'normal', 2: 'surge'}
+            
+            regimes['volatility_label'] = vol_labels[int(regimes['volatility'])]
+            regimes['trend_label'] = trend_labels[int(regimes['trend'])]
+            regimes['volume_label'] = volume_labels[int(regimes['volume'])]
+            
+            self.current_regime = regimes
+            
+            return regimes
+            
+        except Exception as e:
+            self.logger.error(f"Error getting current regime: {e}", category="analysis")
+            return {
+                'volatility': 1,
+                'trend': 0,
+                'volume': 1,
+                'efficiency': 0.5,
+                'error': str(e)
+            }
+    
+    def is_favorable_conditions(
+        self,
+        df: pd.DataFrame,
+        strategy: str = 'trend_following'
+    ) -> bool:
+        """
+        Check if current regime is favorable for trading strategy
         
-        return df
+        Args:
+            df: DataFrame with market data
+            strategy: 'trend_following' or 'mean_reversion'
+            
+        Returns:
+            True if conditions are favorable
+        """
+        regimes = self.get_current_regime(df)
+        
+        if strategy == 'trend_following':
+            # Favorable: trending market, normal/high volatility
+            return (regimes['trend'] == 1 and 
+                   regimes['volatility'] >= 1 and
+                   regimes['efficiency'] > 0.6)
+        
+        elif strategy == 'mean_reversion':
+            # Favorable: ranging market, normal volatility
+            return (regimes['trend'] == 0 and
+                   regimes['volatility'] <= 1 and
+                   regimes['efficiency'] < 0.4)
+        
+        return True  # Default: trade in all conditions
 
 
 if __name__ == "__main__":
@@ -406,46 +369,44 @@ if __name__ == "__main__":
     print("🔍 Testing Regime Detector...")
     
     # Create sample data
-    dates = pd.date_range('2024-01-01', periods=200, freq='1H')
+    dates = pd.date_range(start='2024-01-01', periods=500, freq='1H')
     
-    # Create trending data
-    trend = np.linspace(1.08, 1.10, 200)
-    noise = np.random.normal(0, 0.0005, 200)
-    close = trend + noise
+    # Create trending period followed by ranging period
+    trend = np.linspace(100, 120, 250)
+    trend += np.random.normal(0, 1, 250)
+    
+    ranging = np.random.normal(120, 2, 250)
+    
+    prices = np.concatenate([trend, ranging])
     
     df = pd.DataFrame({
-        'Open': close - 0.0001,
-        'High': close + 0.0002,
-        'Low': close - 0.0002,
-        'Close': close,
-        'Volume': np.random.randint(1000, 10000, 200)
+        'Open': prices - np.random.uniform(0, 0.5, 500),
+        'High': prices + np.random.uniform(0, 1, 500),
+        'Low': prices - np.random.uniform(0, 1, 500),
+        'Close': prices,
+        'Volume': np.random.randint(1000, 10000, 500),
     }, index=dates)
     
     detector = RegimeDetector()
     
-    print("\n✓ Detecting current regime...")
-    regime = detector.detect_regime(df, lookback=50)
+    # Test volatility regime
+    vol_regime = detector.detect_volatility_regime(df)
+    print(f"✓ Volatility regime detected: {vol_regime.value_counts().to_dict()}")
     
-    print(f"\nTrend Regime:")
-    print(f"   Type: {regime['trend']['regime']}")
-    print(f"   ADX: {regime['trend']['adx']:.2f}")
-    print(f"   Efficiency: {regime['trend']['efficiency']:.2%}")
-    print(f"   Direction: {regime['trend']['direction']}")
+    # Test trend regime
+    trend_regime = detector.detect_trend_regime(df)
+    print(f"✓ Trend regime: {trend_regime.value_counts().to_dict()}")
     
-    print(f"\nVolatility Regime:")
-    print(f"   Type: {regime['volatility']['regime']}")
-    print(f"   ATR %: {regime['volatility']['atr_pct']:.3f}%")
-    print(f"   Percentile: {regime['volatility']['atr_percentile']:.0%}")
+    # Test volume regime
+    volume_regime = detector.detect_volume_regime(df)
+    print(f"✓ Volume regime: {volume_regime.value_counts().to_dict()}")
     
-    print(f"\nVolume Regime:")
-    print(f"   Type: {regime['volume']['regime']}")
-    print(f"   Relative: {regime['volume']['relative_volume']:.2f}x")
+    # Test current regime
+    current = detector.get_current_regime(df)
+    print(f"✓ Current regime: {current}")
     
-    print(f"\nComposite Assessment:")
-    print(f"   Favorability: {regime['composite']['favorability']}")
-    print(f"   Trend Score: {regime['composite']['trend_score']:.2f}")
-    print(f"   Volatility Score: {regime['composite']['volatility_score']:.2f}")
-    
-    print(f"\n✓ Regime label: {detector.get_regime_label(df)}")
+    # Test clustering
+    clusters = detector.detect_hidden_regimes_kmeans(df, n_regimes=3)
+    print(f"✓ K-means clusters: {clusters.value_counts().to_dict()}")
     
     print("\n✓ Regime detector test completed")
