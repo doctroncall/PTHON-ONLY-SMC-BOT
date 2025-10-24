@@ -120,6 +120,17 @@ class MT5Connection:
         # Ensure MT5 is imported
         _mt5 = _ensure_mt5_imported()
         
+        # If already connected, return success
+        if self._connected and _mt5.terminal_info() is not None:
+            print("✅ Already connected to MT5")
+            return True
+        
+        # Ensure clean slate - disconnect any existing connection
+        if self._connected:
+            print("🔄 Cleaning up existing connection...")
+            self.disconnect()
+            time.sleep(2)  # Wait for MT5 to fully release
+        
         # Validate credentials first
         if not self._validate_credentials():
             print(f"❌ Credential validation failed: {self._last_error}")
@@ -128,6 +139,10 @@ class MT5Connection:
         for attempt in range(1, self._max_attempts + 1 if retry else 2):
             try:
                 self._connection_attempts = attempt
+                
+                print(f"\n🔄 MT5 Connection Attempt {attempt}/{self._max_attempts}")
+                print(f"   Login: {self.login}")
+                print(f"   Server: {self.server}")
                 
                 # Initialize MT5 WITH credentials
                 if self.path:
@@ -192,9 +207,11 @@ class MT5Connection:
             bool: True if disconnected successfully
         """
         try:
-            if mt5 is not None:
+            if mt5 is not None and self._connected:
                 mt5.shutdown()
+                time.sleep(1)  # Wait for MT5 to fully close
             self._connected = False
+            self._last_connection_time = None
             return True
         except Exception as e:
             self._last_error = f"Error during disconnect: {str(e)}"
